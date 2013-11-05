@@ -27,6 +27,7 @@ __all__ = [
     'PolygonTable',
     'ZOrder',
     'PointTable',
+    'PointsAndPolys',
     'String',
     'LocalizedName',
     'LineStringTable',
@@ -180,9 +181,11 @@ class TagMapper(object):
         self.point_mappings = {}
         self.line_mappings = {}
         self.polygon_mappings = {}
+        self.point_and_poly_mappings = {}
         self.point_tags = {}
         self.line_tags = {}
         self.polygon_tags = {}
+        self.point_and_poly_tags = {}
 
         for mapping in self.mappings:
             if mapping.table is PointTable:
@@ -194,6 +197,9 @@ class TagMapper(object):
             elif mapping.table is PolygonTable:
                 tags = self.polygon_tags
                 add_to = self.polygon_mappings
+            elif mapping.table is PointAndPolyTable:
+                tags = self.point_and_poly_tags
+                add_to = self.point_and_poly_mappings
 
             for extra in mapping.extra_field_names():
                 tags.setdefault(extra, set()).add('__any__')
@@ -208,14 +214,17 @@ class TagMapper(object):
             mapping.limit_to_polygon = self.limit_to_polygon
 
     def for_nodes(self, tags):
-        return self._mapping_for_tags(self.point_mappings, tags)
+        return (self._mapping_for_tags(self.point_mappings, tags) +
+                self._mapping_for_tags(self.point_and_poly_mappings, tags))
 
     def for_ways(self, tags):
         return (self._mapping_for_tags(self.line_mappings, tags) +
+                self._mapping_for_tags(self.point_and_poly_mappings, tags) +
                 self._mapping_for_tags(self.polygon_mappings, tags))
 
     def for_relations(self, tags):
-        return self._mapping_for_tags(self.polygon_mappings, tags)
+        return (self._mapping_for_tags(self.polygon_mappings, tags) +
+                self._mapping_for_tags(self.point_and_poly_mappings, tags))
 
     def _tag_filter(self, filter_tags):
         def filter(tags):
@@ -235,6 +244,8 @@ class TagMapper(object):
 
     def tag_filter_for_nodes(self):
         tags = dict(self.point_tags)
+        for k, v in self.point_and_poly_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
         return self._tag_filter(tags)
 
     def tag_filter_for_ways(self):
@@ -244,6 +255,9 @@ class TagMapper(object):
 
         for k, v in self.polygon_tags.iteritems():
             tags.setdefault(k, set()).update(v)
+
+        for k, v in self.point_and_poly_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
         return self._tag_filter(tags)
 
     def tag_filter_for_relations(self):
@@ -251,6 +265,8 @@ class TagMapper(object):
         for k, v in self.line_tags.iteritems():
             tags.setdefault(k, set()).update(v)
         for k, v in self.polygon_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
+        for k, v in self.point_and_poly_tags.iteritems():
             tags.setdefault(k, set()).update(v)
         tags['type'] = set(['multipolygon', 'boundary', 'land_area'])  # for type=multipolygon
         expected_tags = set(['type', 'name'])
@@ -303,6 +319,8 @@ class LineStringTable(object):
     pass
 class PolygonTable(object):
     pass
+class PointAndPolyTable(object):
+    pass
 
 class Points(Mapping):
     """
@@ -343,6 +361,16 @@ class Polygons(Mapping):
     """
     skip_inserted_ways = True
 
+class PointsAndPolys(Mapping):
+    """
+    Table class for point features.
+
+    :PostGIS datatype: GEOMETRY
+    """
+    table = PointAndPolyTable
+    geom_builder = imposm.geom.PointAndPolyBuilder()
+    geom_type = 'GEOMETRY'
+    skip_inserted_ways = True
 
 class BoundaryPolygons(Polygons):
     """
