@@ -27,6 +27,9 @@ There are three classes for the base geometries: ``Points``, ``LineStrings``  an
 ``with_type_field``
   Controls if the the *value* of the mapped key/value should be stored in the ``type`` column. Defaults to ``True``.
 
+``use_hstore``
+  Controls if all tags should be stored in a ``tags`` hstore column. Defaults to ``False``
+
 .. _mapping:
 
 mapping

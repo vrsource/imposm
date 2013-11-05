@@ -88,10 +88,12 @@ class Mapping(object):
     _insert_stmt = None
     with_type_field = True
 
-    def __init__(self, name, mapping, fields=None, field_filter=None, with_type_field=None):
+    def __init__(self, name, mapping, fields=None, field_filter=None, with_type_field=None,
+                 use_hstore = False):
         self.name = name
         self.mapping = mapping
         self.fields = fields or tuple(self.fields)
+        self.use_hstore = use_hstore
         self.limit_to_polygon = None
         if with_type_field is not None:
             # allow subclass to define other default by setting it as class variable
@@ -155,12 +157,19 @@ class Mapping(object):
             raise DropElem(ex)
 
     def field_values(self, osm_elem):
-        return [t.value(osm_elem.tags.get(n), osm_elem) for n, t in self.fields]
+        values = [t.value(osm_elem.tags.get(n), osm_elem) for n, t in self.fields]
+        # Add dictionary of all tags which will be converted by psycopg2.
+        if self.use_hstore:
+            values.append(osm_elem.tags)
+        return values
 
     def field_dict(self, osm_elem):
         result = dict((n, t.value(osm_elem.tags.get(n), osm_elem)) for n, t in self.fields)
         if self.with_type_field:
             del result['type']
+        # Add dictionary of all tags which will be converted by psycopg2.
+        if self.use_hstore:
+            result['tags'] = osm_elem.tags
         result[osm_elem.cls] = osm_elem.type
         return result
 

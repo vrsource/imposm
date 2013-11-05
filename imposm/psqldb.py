@@ -24,6 +24,7 @@ createuser --no-superuser --no-createrole --createdb ${user}
 createdb -E UTF8 -O ${user} ${dbname}
 createlang plpgsql ${dbname}
 ${postgis}
+echo "CREATE EXTENSION hstore;" | psql -d ${dbname}
 echo "ALTER TABLE spatial_ref_sys OWNER TO ${user};" | psql -d ${dbname}
 echo "ALTER USER ${user} WITH PASSWORD '${password}';" |psql -d ${dbname}
 echo "host\t${dbname}\t${user}\t127.0.0.1/32\tmd5" >> ${pg_hba}
