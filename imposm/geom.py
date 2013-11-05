@@ -157,6 +157,54 @@ class PolygonBuilder(GeomBuilder):
             raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
                                        (osm_elem.osm_id, geom, osm_elem.coords))
 
+
+class PointAndPolyBuilder(GeomBuilder):
+    def is_point(self, data):
+        if 0 == len(data):
+            return False
+        return float == type(data[0])
+
+    def to_wkt(self, data):
+        if self.is_point(data):
+            if len(data) != 2:
+                return None
+            return 'POINT(%f %f)' % (data)
+        else:
+            if len(data) >= 4 and data[0] == data[-1]:
+                return 'POLYGON((' + ', '.join('%f %f' % p for p in data) + '))'
+        return None
+
+    def to_geom(self, data):
+        if self.is_point(data):
+            if 2 == len(data):
+                return geometry.Point(*data)
+        else:
+            if len(data) >= 4 and data[0] == data[-1]:
+                return geometry.Polygon(data)
+        return None
+
+    def check_geom_type(self, geom):
+        if geom.type not in ('Point', 'Polygon', 'MultiPolygon'):
+            raise InvalidGeometryError('expected Point, Polygon or MultiPolygon, got %s' % geom.type)
+
+    def build_checked_geom(self, osm_elem, validate=False):
+        geom = self.build_geom(osm_elem)
+        if not validate:
+            return geom
+        if isinstance(geom, geometry.Polygon):
+            try:
+                return validate_and_simplify(geom)
+            except InvalidGeometryError:
+                raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
+                                           (osm_elem.osm_id, geom, osm_elem.coords))
+        else:
+            if geom.is_valid:
+                return geom
+            else:
+                raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
+                                           (osm_elem.osm_id, geom, osm_elem.coords))
+
+
 class LineStringBuilder(GeomBuilder):
     def to_wkt(self, data):
         if len(data) <= 1:
