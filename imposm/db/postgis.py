@@ -18,6 +18,7 @@ from contextlib import contextmanager
 
 import psycopg2
 import psycopg2.extensions
+import psycopg2.extras
 
 import logging
 log = logging.getLogger(__name__)
@@ -76,6 +77,8 @@ class PostGISDB(object):
             )
             self._connection.set_isolation_level(
                 psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+            # Register adapter and typecaster for dict conversion.
+            psycopg2.extras.register_hstore(self._connection, unicode = True)
         return self._connection
 
     def commit(self):
@@ -163,6 +166,12 @@ class PostGISDB(object):
             extra_arg_names = [n for n, t in mapping.fields]
             extra_args = ', %s' * len(extra_arg_names)
             extra_arg_names = ', ' + ', '.join('"' + name + '"' for name in extra_arg_names)
+
+        # Add tags argument for hstore.
+        if mapping.use_hstore:
+            extra_arg_names += ', tags'
+            extra_args += ', %s'
+
         return """INSERT INTO "%(tablename)s"
             (osm_id, geometry %(extra_arg_names)s)
             VALUES (%%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(srid)s)
@@ -190,6 +199,10 @@ class PostGISDB(object):
         extra_fields = ''
         for n, t in mapping.fields:
             extra_fields += ', "%s" %s ' % (n, t.column_type)
+
+        # Add hstore column named tags.
+        if mapping.use_hstore:
+            extra_fields += ', "tags" HSTORE '
 
         if config.imposm_pg_serial_id:
             serial_column = "id SERIAL PRIMARY KEY,"
