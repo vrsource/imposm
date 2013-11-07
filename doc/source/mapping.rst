@@ -77,6 +77,14 @@ There is a default field for names if you do not supply a field for the `name` c
 .. autofunction:: set_default_name_type
 
 
+PostgreSQL hstore
+^^^^^^^^^^^^^^^^^
+
+By default each mapping only stores the fields that are specified in the `tags` hstore column. If you want to store all OSM tags can call :func:`set_hstore_all_tags`.
+
+.. autofunction:: set_hstore_all_tags
+
+
 Classes
 ~~~~~~~
 

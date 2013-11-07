@@ -39,9 +39,11 @@ __all__ = [
     'FixInvalidPolygons',
     'UnionView',
     'set_default_name_field',
+    'set_hstore_all_tags'
 ]
 
 default_name_field = None
+hstore_all_tags = False
 
 def set_default_name_type(type, column_name='name'):
     """
@@ -54,6 +56,17 @@ def set_default_name_type(type, column_name='name'):
     """
     global default_name_field
     default_name_field = column_name, type
+
+def set_hstore_all_tags(all_tags):
+    """
+    Set flag that indicates that we should disable the filtering of tags.
+
+    ::
+
+        set_hstore_all_tags(True)
+    """
+    global hstore_all_tags
+    hstore_all_tags = all_tags
 
 # changed by imposm.app if the projection is epsg:4326
 import_srs_is_geographic = False
@@ -227,6 +240,10 @@ class TagMapper(object):
         return self._mapping_for_tags(self.polygon_mappings, tags)
 
     def _tag_filter(self, filter_tags):
+        # Disable filtering of tags by returning None.
+        if hstore_all_tags:
+            return None
+
         def filter(tags):
             for k in tags.keys():
                 if k not in filter_tags:
@@ -271,7 +288,8 @@ class TagMapper(object):
                 tags.clear()
                 return
             tag_count = len(tags)
-            _rel_filter(tags)
+            if _rel_filter is not None:
+                _rel_filter(tags)
             if len(tags) < tag_count:
                 # we removed tags...
                 if not set(tags).difference(expected_tags):
